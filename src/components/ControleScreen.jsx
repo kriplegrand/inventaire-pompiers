@@ -1,6 +1,7 @@
 // src/components/ControleScreen.jsx
 import React, { useState, useEffect } from 'react';
 import { Check, X, Download } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 import { DB } from '../services/db';
 
 export default function ControleScreen({ camion, user, onBack }) {
@@ -49,114 +50,155 @@ export default function ControleScreen({ camion, user, onBack }) {
     return c && c.status !== null && (c.status !== 'absent' || c.commentaire.trim());
   });
 
-  const handleValidate = async () => {
-    const presents = Object.values(controle).filter((c) => c.status === 'present').length;
-    const absents = Object.values(controle).filter((c) => c.status === 'absent').length;
-    const taux = ((presents / equipements.length) * 100).toFixed(1);
-    
-    const config = await DB.getConfig();
+  // Fonction pour générer le HTML du rapport
+  const generateRapportHTML = (rapportData) => {
+    const equipRows = rapportData.equipements.map(e => {
+      const statusText = e.status === 'present' ? 'Présent' : 'Absent';
+      const statusClass = e.status;
+      const commentText = e.commentaire || '-';
+      return `<tr><td>${e.nom}</td><td class="${statusClass}">${statusText}</td><td>${commentText}</td></tr>`;
+    }).join('');
 
-    const equipementsDetailles = equipements.map((e) => ({
-      nom: e.nom,
-      status: controle[e.id].status,
-      commentaire: controle[e.id].commentaire,
-    }));
-
-    setRapportData({
-      camion: `${camion.marque} ${camion.type}`,
-      immatriculation: camion.immatriculation,
-      presents,
-      absents,
-      total: equipements.length,
-      taux,
-      emailChef: config.emailChefCorps,
-      date: new Date().toLocaleString('fr-FR'),
-      controlePar: user?.email || "Utilisateur",
-      equipements: equipementsDetailles,
-    });
-    setShowRapport(true);
-  };
-
-  const generatePDF = () => {
-    const pdfContent = `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; padding: 40px; }
-    h1 { color: #1e40af; text-align: center; margin-bottom: 30px; }
-    .header { background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
-    .header-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .label { font-weight: bold; color: #4b5563; }
-    table { width: 100%; border-collapse: collapse; margin: 30px 0; }
-    th { background: #1e40af; color: white; padding: 12px; text-align: left; }
-    td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
-    tr:nth-child(even) { background: #f9fafb; }
-    .present { color: #059669; font-weight: bold; }
-    .absent { color: #dc2626; font-weight: bold; }
-    .summary { background: #f3f4f6; padding: 20px; border-radius: 8px; margin-top: 30px; }
-    .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .footer { text-align: center; color: #6b7280; margin-top: 40px; font-size: 12px; }
-  </style>
+<meta charset="UTF-8">
+<style>
+body { font-family: Arial, sans-serif; padding: 40px; }
+h1 { color: #1e40af; text-align: center; margin-bottom: 30px; }
+.header { background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+.header-row { margin-bottom: 10px; }
+.label { font-weight: bold; color: #4b5563; }
+table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+th { background: #1e40af; color: white; padding: 12px; text-align: left; }
+td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+tr:nth-child(even) { background: #f9fafb; }
+.present { color: #059669; font-weight: bold; }
+.absent { color: #dc2626; font-weight: bold; }
+.summary { background: #f3f4f6; padding: 20px; border-radius: 8px; margin-top: 30px; }
+.summary-row { margin-bottom: 10px; }
+.footer { text-align: center; color: #6b7280; margin-top: 40px; font-size: 12px; }
+</style>
 </head>
 <body>
-  <h1>🚒 RAPPORT DE CONTRÔLE D'INVENTAIRE</h1>
-  <div class="header">
-    <div class="header-row">
-      <div><span class="label">Date et heure:</span> ${rapportData.date}</div>
-    </div>
-    <div class="header-row">
-      <div><span class="label">Camion:</span> ${rapportData.camion}</div>
-      <div><span class="label">Immatriculation:</span> ${rapportData.immatriculation}</div>
-    </div>
-    <div class="header-row">
-      <div><span class="label">Contrôlé par:</span> ${rapportData.controlePar}</div>
-    </div>
-  </div>
-  <h2>Détail des équipements</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 50%">Équipement</th>
-        <th style="width: 15%">Statut</th>
-        <th style="width: 35%">Commentaire</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rapportData.equipements.map(e => `
-        <tr>
-          <td>${e.nom}</td>
-          <td class="${e.status}">${e.status === 'present' ? '✓ Présent' : '✗ Absent'}</td>
-          <td>${e.commentaire || '-'}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  <div class="summary">
-    <h3 style="margin-top: 0;">Résumé</h3>
-    <div class="summary-row">
-      <span class="label">Nombre total d'équipements:</span>
-      <span>${rapportData.total}</span>
-    </div>
-    <div class="summary-row">
-      <span class="label">Équipements présents:</span>
-      <span style="color: #059669; font-weight: bold;">${rapportData.presents}</span>
-    </div>
-    <div class="summary-row">
-      <span class="label">Équipements défaillants ou absents:</span>
-      <span style="color: #dc2626; font-weight: bold;">${rapportData.absents}</span>
-    </div>
-    <div class="summary-row" style="border-top: 2px solid #1e40af; padding-top: 10px; margin-top: 10px;">
-      <span class="label" style="font-size: 18px;">Taux de conformité:</span>
-      <span style="color: #1e40af; font-weight: bold; font-size: 18px;">${rapportData.taux}%</span>
-    </div>
-  </div>
-  <div class="footer">
-    <p>Rapport généré automatiquement le ${rapportData.date}</p>
-    <p>Application Inventaire Pompiers - Caserne</p>
-  </div>
+<h1>RAPPORT DE CONTROLE D'INVENTAIRE</h1>
+<div class="header">
+<div class="header-row"><span class="label">Date et heure:</span> ${rapportData.date}</div>
+<div class="header-row"><span class="label">Camion:</span> ${rapportData.camion}</div>
+<div class="header-row"><span class="label">Immatriculation:</span> ${rapportData.immatriculation}</div>
+<div class="header-row"><span class="label">Controle par:</span> ${rapportData.controlePar}</div>
+</div>
+<h2>Detail des equipements</h2>
+<table>
+<thead>
+<tr>
+<th>Equipement</th>
+<th>Statut</th>
+<th>Commentaire</th>
+</tr>
+</thead>
+<tbody>
+${equipRows}
+</tbody>
+</table>
+<div class="summary">
+<h3>Resume</h3>
+<div class="summary-row"><span class="label">Nombre total d'equipements:</span> ${rapportData.total}</div>
+<div class="summary-row"><span class="label">Equipements presents:</span> <strong style="color: #059669;">${rapportData.presents}</strong></div>
+<div class="summary-row"><span class="label">Equipements absents:</span> <strong style="color: #dc2626;">${rapportData.absents}</strong></div>
+<div class="summary-row" style="border-top: 2px solid #1e40af; padding-top: 10px; margin-top: 10px;">
+<span class="label" style="font-size: 18px;">Taux de conformite:</span> <strong style="color: #1e40af; font-size: 18px;">${rapportData.taux}%</strong>
+</div>
+</div>
+<div class="footer">
+<p>Rapport genere automatiquement le ${rapportData.date}</p>
+<p>Application Inventaire Pompiers - Caserne</p>
+</div>
 </body>
 </html>`;
+  };
+
+  // Fonction pour envoyer l'email via EmailJS
+  const envoyerEmailRapport = async (rapportData, config) => {
+    try {
+      if (!config.emailJsServiceId || !config.emailJsTemplateId || !config.emailJsPublicKey) {
+        console.error('Configuration EmailJS manquante dans Firebase');
+        return false;
+      }
+
+      const rapportHTML = generateRapportHTML(rapportData);
+
+      const templateParams = {
+        to_email: config.emailChefCorps,
+        nomVehicule: rapportData.camion + ' (' + rapportData.immatriculation + ')',
+        date: rapportData.date,
+        controleur: rapportData.controlePar,
+        rapportHTML: rapportHTML
+      };
+
+      await emailjs.send(
+        config.emailJsServiceId,
+        config.emailJsTemplateId,
+        templateParams,
+        config.emailJsPublicKey
+      );
+
+      console.log('Email envoye avec succes a:', config.emailChefCorps);
+      return true;
+    } catch (error) {
+      console.error('Erreur envoi email:', error);
+      return false;
+    }
+  };
+
+  const handleValidate = async () => {
+      const presents = Object.values(controle).filter((c) => c.status === 'present').length;
+      const absents = Object.values(controle).filter((c) => c.status === 'absent').length;
+      const taux = ((presents / equipements.length) * 100).toFixed(1);
+    
+      const config = await DB.getConfig();
+
+      const equipementsDetailles = equipements.map((e) => ({
+        nom: e.nom,
+        status: controle[e.id].status,
+        commentaire: controle[e.id].commentaire,
+      }));
+
+      const rapportDataTemp = {
+        camion: `${camion.marque} ${camion.type}`,
+        immatriculation: camion.immatriculation,
+        presents,
+        absents,
+        total: equipements.length,
+        taux,
+        emailChef: config.emailChefCorps,
+        date: new Date().toLocaleString('fr-FR'),
+        controlePar: user?.email || "Utilisateur",
+        equipements: equipementsDetailles,
+        config: config
+      };
+
+      // Envoyer l'email automatiquement
+      const emailSuccess = await envoyerEmailRapport(rapportDataTemp, config);
+    
+      // Mettre à jour rapportData pour l'affichage
+      setRapportData(rapportDataTemp);
+      setShowRapport(true);
+
+      // Afficher un message selon le résultat
+      if (emailSuccess) {
+        setTimeout(() => {
+          alert(`Email envoye avec succes a ${config.emailChefCorps}`);
+        }, 500);
+      } else {
+        setTimeout(() => {
+          alert(`Erreur: L'email n'a pas pu etre envoye. Verifiez la configuration EmailJS dans Firebase.`);
+        }, 500);
+      }
+    };
+
+  const generatePDF = async () => {
+    const pdfContent = generateRapportHTML(rapportData);
 
     const blob = new Blob([pdfContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -167,6 +209,13 @@ export default function ControleScreen({ camion, user, onBack }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    const success = await envoyerEmailRapport(rapportData, rapportData.config);
+    if (success) {
+      alert(`Rapport telecharge et envoye par email a : ${rapportData.emailChef}`);
+    } else {
+      alert(`Rapport telecharge mais l'email n'a pas pu etre envoye. Verifiez la configuration EmailJS dans Firebase.`);
+    }
   };
 
   const handleCloseRapport = () => {
@@ -270,7 +319,7 @@ export default function ControleScreen({ camion, user, onBack }) {
 
           <div className="bg-blue-50 border-l-4 border-blue-900 p-3 mb-6">
             <p className="text-xs sm:text-sm text-blue-900">
-              Le rapport sera envoyé à :{' '}
+              📧 Le rapport sera automatiquement envoyé par email à :{' '}
               <strong className="break-all block sm:inline mt-1 sm:mt-0">
                 {rapportData.emailChef}
               </strong>
@@ -328,8 +377,7 @@ export default function ControleScreen({ camion, user, onBack }) {
             Contrôle - {camion.marque} {camion.type}
           </h1>
           <p className="text-blue-200">Immatriculation: {camion.immatriculation}</p>
-          <p className="text-blue-200 text-sm">Contrôlé par: {user?.email 
-|| "Utilisateur"}</p>
+          <p className="text-blue-200 text-sm">Contrôlé par: {user?.email || "Utilisateur"}</p>
         </div>
       </div>
       <div className="max-w-4xl mx-auto p-6">
