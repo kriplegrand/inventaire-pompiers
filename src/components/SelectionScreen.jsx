@@ -28,7 +28,7 @@ export default function SelectionScreen({ onSelect, onLogout }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <div className="bg-blue-900 text-white p-4 shadow-lg">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">🚒 Sélection du Camion</h1>
@@ -41,7 +41,7 @@ export default function SelectionScreen({ onSelect, onLogout }) {
           </button>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="flex-1 max-w-6xl mx-auto p-6 w-full">
         <div className="bg-blue-50 border-l-4 border-blue-900 p-4 mb-6">
           <p className="text-blue-900 font-medium">
             👉 Choisissez le camion à inventorier en cliquant sur la carte correspondante
@@ -74,6 +74,13 @@ export default function SelectionScreen({ onSelect, onLogout }) {
             ))}
           </div>
         )}
+      </div>
+      
+      {/* Footer */}
+      <div className="bg-gray-100 py-4 text-center">
+        <p className="text-gray-500 text-sm">
+          Application offerte par La Panouille-Servian
+        </p>
       </div>
     </div>
   );

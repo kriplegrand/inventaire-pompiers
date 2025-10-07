@@ -113,6 +113,7 @@ ${equipRows}
 <div class="footer">
 <p>Rapport genere automatiquement le ${rapportData.date}</p>
 <p>Application Inventaire Pompiers - Caserne</p>
+<p style="margin-top: 10px; color: #9ca3af;">Application offerte par La Panouille-Servian</p>
 </div>
 </body>
 </html>`;
@@ -152,50 +153,50 @@ ${equipRows}
   };
 
   const handleValidate = async () => {
-      const presents = Object.values(controle).filter((c) => c.status === 'present').length;
-      const absents = Object.values(controle).filter((c) => c.status === 'absent').length;
-      const taux = ((presents / equipements.length) * 100).toFixed(1);
+    const presents = Object.values(controle).filter((c) => c.status === 'present').length;
+    const absents = Object.values(controle).filter((c) => c.status === 'absent').length;
+    const taux = ((presents / equipements.length) * 100).toFixed(1);
     
-      const config = await DB.getConfig();
+    const config = await DB.getConfig();
 
-      const equipementsDetailles = equipements.map((e) => ({
-        nom: e.nom,
-        status: controle[e.id].status,
-        commentaire: controle[e.id].commentaire,
-      }));
+    const equipementsDetailles = equipements.map((e) => ({
+      nom: e.nom,
+      status: controle[e.id].status,
+      commentaire: controle[e.id].commentaire,
+    }));
 
-      const rapportDataTemp = {
-        camion: `${camion.marque} ${camion.type}`,
-        immatriculation: camion.immatriculation,
-        presents,
-        absents,
-        total: equipements.length,
-        taux,
-        emailChef: config.emailChefCorps,
-        date: new Date().toLocaleString('fr-FR'),
-        controlePar: user?.email || "Utilisateur",
-        equipements: equipementsDetailles,
-        config: config
-      };
-
-      // Envoyer l'email automatiquement
-      const emailSuccess = await envoyerEmailRapport(rapportDataTemp, config);
-    
-      // Mettre à jour rapportData pour l'affichage
-      setRapportData(rapportDataTemp);
-      setShowRapport(true);
-
-      // Afficher un message selon le résultat
-      if (emailSuccess) {
-        setTimeout(() => {
-          alert(`Email envoye avec succes a ${config.emailChefCorps}`);
-        }, 500);
-      } else {
-        setTimeout(() => {
-          alert(`Erreur: L'email n'a pas pu etre envoye. Verifiez la configuration EmailJS dans Firebase.`);
-        }, 500);
-      }
+    const rapportDataTemp = {
+      camion: `${camion.marque} ${camion.type}`,
+      immatriculation: camion.immatriculation,
+      presents,
+      absents,
+      total: equipements.length,
+      taux,
+      emailChef: config.emailChefCorps,
+      date: new Date().toLocaleString('fr-FR'),
+      controlePar: user?.email || "Utilisateur",
+      equipements: equipementsDetailles,
+      config: config
     };
+
+    // Envoyer l'email automatiquement
+    const emailSuccess = await envoyerEmailRapport(rapportDataTemp, config);
+    
+    // Mettre à jour rapportData pour l'affichage
+    setRapportData(rapportDataTemp);
+    setShowRapport(true);
+
+    // Afficher un message selon le résultat
+    if (emailSuccess) {
+      setTimeout(() => {
+        alert(`Email envoye avec succes a ${config.emailChefCorps}`);
+      }, 500);
+    } else {
+      setTimeout(() => {
+        alert(`Erreur: L'email n'a pas pu etre envoye. Verifiez la configuration EmailJS dans Firebase.`);
+      }, 500);
+    }
+  };
 
   const generatePDF = async () => {
     const pdfContent = generateRapportHTML(rapportData);
@@ -209,13 +210,6 @@ ${equipRows}
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    const success = await envoyerEmailRapport(rapportData, rapportData.config);
-    if (success) {
-      alert(`Rapport telecharge et envoye par email a : ${rapportData.emailChef}`);
-    } else {
-      alert(`Rapport telecharge mais l'email n'a pas pu etre envoye. Verifiez la configuration EmailJS dans Firebase.`);
-    }
   };
 
   const handleCloseRapport = () => {
@@ -319,7 +313,7 @@ ${equipRows}
 
           <div className="bg-blue-50 border-l-4 border-blue-900 p-3 mb-6">
             <p className="text-xs sm:text-sm text-blue-900">
-              📧 Le rapport sera automatiquement envoyé par email à :{' '}
+              📧 Le rapport a été automatiquement envoyé par email à :{' '}
               <strong className="break-all block sm:inline mt-1 sm:mt-0">
                 {rapportData.emailChef}
               </strong>
@@ -341,6 +335,13 @@ ${equipRows}
               Terminer
             </button>
           </div>
+          
+          {/* Footer */}
+          <div className="mt-6 text-center border-t pt-4">
+            <p className="text-gray-400 text-xs">
+              Application offerte par La Panouille-Servian
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -348,13 +349,13 @@ ${equipRows}
 
   if (equipements.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-100 flex flex-col">
         <div className="bg-blue-900 text-white p-4">
           <h1 className="text-2xl font-bold max-w-4xl mx-auto">
             Contrôle - {camion.marque}
           </h1>
         </div>
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="flex-1 max-w-4xl mx-auto p-6 w-full">
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <p className="text-gray-600 mb-4">Aucun équipement configuré.</p>
             <button
@@ -365,12 +366,19 @@ ${equipRows}
             </button>
           </div>
         </div>
+        
+        {/* Footer */}
+        <div className="bg-gray-100 py-4 text-center">
+          <p className="text-gray-500 text-sm">
+            Application offerte par La Panouille-Servian
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <div className="bg-blue-900 text-white p-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-2">
@@ -380,7 +388,7 @@ ${equipRows}
           <p className="text-blue-200 text-sm">Contrôlé par: {user?.email || "Utilisateur"}</p>
         </div>
       </div>
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="flex-1 max-w-4xl mx-auto p-6 w-full">
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="flex justify-between items-center">
             <span className="font-medium">
@@ -461,6 +469,13 @@ ${equipRows}
             {canValidate ? 'Valider le Contrôle' : 'Complétez TOUS les équipements'}
           </button>
         </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="bg-gray-100 py-4 text-center">
+        <p className="text-gray-500 text-sm">
+          Application offerte par La Panouille-Servian
+        </p>
       </div>
     </div>
   );

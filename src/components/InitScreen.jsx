@@ -88,6 +88,13 @@ export default function InitScreen({ onComplete }) {
             {loading ? 'Initialisation...' : 'Initialiser'}
           </button>
         </div>
+        
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-500 text-sm">
+            Application offerte par La Panouille-Servian
+          </p>
+        </div>
       </div>
     </div>
   );
